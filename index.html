@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<title>CSC Khata Book</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+body{font-family:Arial;background:#f2f2f2;padding:10px}
+.container{background:#fff;padding:15px;border-radius:8px;max-width:700px;margin:auto}
+h2{text-align:center}
+input,select,button{width:100%;padding:8px;margin:5px 0}
+button{background:#28a745;color:#fff;border:none;font-size:15px}
+table{width:100%;border-collapse:collapse;margin-top:10px}
+th,td{border:1px solid #ccc;padding:6px;text-align:center;font-size:13px}
+th{background:#eee}
+.balance{margin-top:10px;font-weight:bold;text-align:center}
+.flex{display:flex;gap:5px}
+</style>
+</head>
+
+<body>
+<div class="container">
+<h2>CSC Khata Book</h2>
+
+<input id="name" placeholder="ग्राहक का नाम">
+<input id="mobile" placeholder="मोबाइल नंबर">
+<input id="work" placeholder="काम का नाम">
+<select id="type">
+<option value="credit">जमा</option>
+<option value="debit">निकासी</option>
+</select>
+<input id="amount" type="number" placeholder="रकम">
+<input id="date" type="date">
+<button onclick="addEntry()">सेव करें</button>
+
+<hr>
+
+<input id="search" placeholder="ग्राहक खोजें..." onkeyup="show()">
+
+<div class="flex">
+<input type="date" id="from">
+<input type="date" id="to">
+</div>
+
+<button onclick="show()">Date Filter</button>
+<button onclick="exportPDF()">PDF Export</button>
+
+<table>
+<thead>
+<tr>
+<th>नाम</th>
+<th>काम</th>
+<th>जमा</th>
+<th>निकासी</th>
+<th>तारीख</th>
+</tr>
+</thead>
+<tbody id="list"></tbody>
+</table>
+
+<div class="balance" id="balance">कुल बकाया: ₹0</div>
+</div>
+
+<script>
+let data = JSON.parse(localStorage.getItem("khata")) || [];
+
+function addEntry(){
+ let obj={
+  name:name.value,
+  work:work.value,
+  type:type.value,
+  amount:parseInt(amount.value),
+  date:date.value
+ };
+ if(!obj.name||!obj.amount||!obj.date){alert("पूरा भरें");return;}
+ data.push(obj);
+ localStorage.setItem("khata",JSON.stringify(data));
+ show();
+}
+
+function show(){
+ let list=document.getElementById("list");
+ list.innerHTML="";
+ let bal=0;
+
+ let s=search.value.toLowerCase();
+ let f=from.value;
+ let t=to.value;
+
+ data.filter(d=>{
+  return (!s||d.name.toLowerCase().includes(s)) &&
+         (!f||d.date>=f) &&
+         (!t||d.date<=t);
+ }).forEach(d=>{
+  let cr=d.type=="credit"?d.amount:0;
+  let dr=d.type=="debit"?d.amount:0;
+  bal+=cr-dr;
+
+  list.innerHTML+=`
+  <tr>
+   <td>${d.name}</td>
+   <td>${d.work}</td>
+   <td>${cr}</td>
+   <td>${dr}</td>
+   <td>${d.date}</td>
+  </tr>`;
+ });
+
+ balance.innerText="कुल बकाया: ₹"+bal;
+}
+
+function exportPDF(){
+ const { jsPDF } = window.jspdf;
+ let pdf=new jsPDF();
+ pdf.text("CSC Khata Book",10,10);
+ let y=20;
+ data.forEach(d=>{
+  pdf.text(`${d.name} | ${d.work} | ${d.type=="credit"?"+": "-"}${d.amount} | ${d.date}`,10,y);
+  y+=7;
+ });
+ pdf.save("csc-khata-book.pdf");
+}
+
+show();
+</script>
+</body>
+</html>
