@@ -4,32 +4,51 @@
 <meta charset="UTF-8">
 <title>CSC Khata Book</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
 <style>
 body{font-family:Arial;background:#f2f2f2;padding:10px}
-.container{background:#fff;padding:15px;border-radius:8px;max-width:700px;margin:auto}
+.container{background:#fff;padding:15px;border-radius:8px;max-width:900px;margin:auto}
 h2{text-align:center}
 input,select,button{width:100%;padding:8px;margin:5px 0}
-button{background:#28a745;color:#fff;border:none;font-size:15px}
+button{background:#28a745;color:#fff;border:none;font-size:15px;cursor:pointer}
 table{width:100%;border-collapse:collapse;margin-top:10px}
 th,td{border:1px solid #ccc;padding:6px;text-align:center;font-size:13px}
 th{background:#eee}
-.balance{margin-top:10px;font-weight:bold;text-align:center}
+.balance{margin:10px 0;font-weight:bold;text-align:center;font-size:16px}
 .flex{display:flex;gap:5px}
+.red{color:red;font-weight:bold}
+.green{color:green;font-weight:bold}
+.small-btn{padding:4px 6px;font-size:12px}
 </style>
 </head>
 
 <body>
+
+<script>
+let pass = localStorage.getItem("khata_pass");
+if(!pass){
+  let p = prompt("नया पासवर्ड सेट करो");
+  localStorage.setItem("khata_pass",p);
+}else{
+  let p = prompt("पासवर्ड डालो");
+  if(p!==pass){document.body.innerHTML="❌ गलत पासवर्ड"; throw "";}
+}
+</script>
+
 <div class="container">
 <h2>CSC Khata Book</h2>
 
 <input id="name" placeholder="ग्राहक का नाम">
 <input id="mobile" placeholder="मोबाइल नंबर">
 <input id="work" placeholder="काम का नाम">
+
 <select id="type">
-<option value="credit">जमा</option>
-<option value="debit">निकासी</option>
+<option value="udhar">उधार</option>
+<option value="cash">नकद</option>
 </select>
+
 <input id="amount" type="number" placeholder="रकम">
 <input id="date" type="date">
 <button onclick="addEntry()">सेव करें</button>
@@ -43,71 +62,127 @@ th{background:#eee}
 <input type="date" id="to">
 </div>
 
+<div class="flex">
 <button onclick="show()">Date Filter</button>
 <button onclick="exportPDF()">PDF Export</button>
+</div>
 
 <table>
 <thead>
 <tr>
 <th>नाम</th>
 <th>काम</th>
-<th>जमा</th>
-<th>निकासी</th>
+<th>नकद</th>
+<th>उधार</th>
 <th>तारीख</th>
+<th>Action</th>
 </tr>
 </thead>
 <tbody id="list"></tbody>
 </table>
 
 <div class="balance" id="balance">कुल बकाया: ₹0</div>
+
+<h3>🔴 उधार वाले ग्राहक</h3>
+<ul id="udharList"></ul>
+
 </div>
 
 <script>
 let data = JSON.parse(localStorage.getItem("khata")) || [];
+let editIndex = -1;
 
 function addEntry(){
  let obj={
-  name:name.value,
-  work:work.value,
+  name:name.value.trim(),
+  mobile:mobile.value.trim(),
+  work:work.value.trim(),
   type:type.value,
-  amount:parseInt(amount.value),
-  date:date.value
+  amount:Number(amount.value),
+  date:date.value || new Date().toISOString().slice(0,10)
  };
- if(!obj.name||!obj.amount||!obj.date){alert("पूरा भरें");return;}
- data.push(obj);
+
+ if(obj.name==="" || isNaN(obj.amount) || obj.amount<=0){
+   alert("नाम और सही रकम डालो");
+   return;
+ }
+
+ if(editIndex>-1){
+   data[editIndex]=obj;
+   editIndex=-1;
+ }else{
+   data.push(obj);
+ }
+
  localStorage.setItem("khata",JSON.stringify(data));
+ clearForm();
  show();
+}
+
+function clearForm(){
+ name.value=""; mobile.value=""; work.value="";
+ amount.value=""; date.value="";
 }
 
 function show(){
  let list=document.getElementById("list");
- list.innerHTML="";
+ let ulist=document.getElementById("udharList");
+ list.innerHTML=""; ulist.innerHTML="";
  let bal=0;
+ let customerBal={};
 
  let s=search.value.toLowerCase();
- let f=from.value;
- let t=to.value;
+ let f=from.value; let t=to.value;
 
  data.filter(d=>{
   return (!s||d.name.toLowerCase().includes(s)) &&
          (!f||d.date>=f) &&
          (!t||d.date<=t);
- }).forEach(d=>{
-  let cr=d.type=="credit"?d.amount:0;
-  let dr=d.type=="debit"?d.amount:0;
-  bal+=cr-dr;
+ }).forEach((d,i)=>{
+  let cash = d.type=="cash"?d.amount:0;
+  let udhar = d.type=="udhar"?d.amount:0;
+  bal += udhar - cash;
+
+  customerBal[d.name]=(customerBal[d.name]||0)+(udhar-cash);
 
   list.innerHTML+=`
   <tr>
    <td>${d.name}</td>
    <td>${d.work}</td>
-   <td>${cr}</td>
-   <td>${dr}</td>
+   <td>${cash}</td>
+   <td>${udhar}</td>
    <td>${d.date}</td>
+   <td>
+    <button class="small-btn" onclick="edit(${i})">Edit</button>
+    <button class="small-btn" onclick="del(${i})">Del</button>
+   </td>
   </tr>`;
  });
 
- balance.innerText="कुल बकाया: ₹"+bal;
+ for(let c in customerBal){
+   if(customerBal[c]>0){
+     ulist.innerHTML+=`<li class="red">${c} : ₹${customerBal[c]}</li>`;
+   }
+ }
+
+ document.getElementById("balance").innerHTML=
+  "कुल बकाया: ₹"+bal;
+}
+
+function edit(i){
+ let d=data[i];
+ name.value=d.name; mobile.value=d.mobile;
+ work.value=d.work; type.value=d.type;
+ amount.value=d.amount; date.value=d.date;
+ editIndex=i;
+}
+
+function del(i){
+ if(confirm("Delete करें?")){
+  data.splice(i,1);
+  localStorage.setItem("khata",JSON.stringify(data));
+  show();
+ }
 }
 
 function exportPDF(){
@@ -116,7 +191,7 @@ function exportPDF(){
  pdf.text("CSC Khata Book",10,10);
  let y=20;
  data.forEach(d=>{
-  pdf.text(`${d.name} | ${d.work} | ${d.type=="credit"?"+": "-"}${d.amount} | ${d.date}`,10,y);
+  pdf.text(`${d.name} | ${d.work} | ${d.type=="udhar"?"उधार":"नकद"} ${d.amount} | ${d.date}`,10,y);
   y+=7;
  });
  pdf.save("csc-khata-book.pdf");
@@ -124,5 +199,6 @@ function exportPDF(){
 
 show();
 </script>
+
 </body>
 </html>
