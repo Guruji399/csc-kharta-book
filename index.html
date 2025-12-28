@@ -93,30 +93,37 @@ let data = JSON.parse(localStorage.getItem("khata")) || [];
 let editIndex = -1;
 
 function addEntry(){
- let obj={
-  name:name.value.trim(),
-  mobile:mobile.value.trim(),
-  work:work.value.trim(),
-  type:type.value,
-  amount:Number(amount.value),
-  date:date.value || new Date().toISOString().slice(0,10)
- };
+  let nameVal = document.getElementById("name").value.trim();
+  let mobileVal = document.getElementById("mobile").value.trim();
+  let workVal = document.getElementById("work").value.trim();
+  let typeVal = document.getElementById("type").value;
+  let amtVal = Number(document.getElementById("amount").value);
+  let dateVal = document.getElementById("date").value || new Date().toISOString().slice(0,10);
 
- if(obj.name==="" || isNaN(obj.amount) || obj.amount<=0){
-   alert("नाम और सही रकम डालो");
-   return;
- }
+  if(nameVal === "" || isNaN(amtVal) || amtVal <= 0){
+    alert("नाम और सही रकम डालो");
+    return;
+  }
 
- if(editIndex>-1){
-   data[editIndex]=obj;
-   editIndex=-1;
- }else{
-   data.push(obj);
- }
+  let obj = {
+    name: nameVal,
+    mobile: mobileVal,
+    work: workVal,
+    type: typeVal,
+    amount: amtVal,
+    date: dateVal
+  };
 
- localStorage.setItem("khata",JSON.stringify(data));
- clearForm();
- show();
+  if(editIndex > -1){
+    data[editIndex] = obj;
+    editIndex = -1;
+  }else{
+    data.push(obj);
+  }
+
+  localStorage.setItem("khata", JSON.stringify(data));
+  clearForm();
+  show();
 }
 
 function clearForm(){
